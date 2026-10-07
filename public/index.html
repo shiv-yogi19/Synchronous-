@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SYNCWAVE</title><link rel="stylesheet" href="style.css?v=1.0.1"></head><body>
+<div id="intro"><h1>SYNCWAVE</h1><p>Live Music • Live Microphone • Real-Time Visualizer</p><small>Created By Shiv Yogi</small></div>
+<header><b>SYNCWAVE</b><span id="live">OFFLINE</span><button id="connectBtn">CONNECT</button></header>
+<main>
+<section id="home" class="glass"><p>Live Music • Live Microphone • Real-Time Visualizer</p>
+<button id="uploadBtn" class="big">🎵 Upload Song</button><input id="file" type="file" accept="audio/*" multiple hidden>
+<button id="micBtn" class="big">🎙 Start Microphone</button></section>
+<section id="room" class="glass" hidden>
+<div>LIVE ROOM</div><div id="code"></div><button id="copyBtn">Copy Code</button><button id="shareBtn">Share</button>
+<div id="status"></div></section>
+<section id="player" class="glass" hidden><div id="title">—</div><input id="seek" type="range" min="0" max="100" value="0" aria-label="Seek"><div id="time">00:00 / 00:00</div>
+<div id="ctl"><button id="prev" aria-label="Previous">⏮</button><button id="play" aria-label="Play or pause">▶</button><button id="next" aria-label="Next">⏭</button></div>
+<label>Volume <input id="vol" type="range" min="0" max="1" step="0.01" value="1"></label>
+<label>Mic gain <input id="micGain" type="range" min="0" max="2" step="0.05" value="1"></label>
+<label>Ducking <input id="duck" type="range" min="0.2" max="1" step="0.05" value="0.4"></label>
+<label><input id="guestCtl" type="checkbox"> Allow Guest Controls</label>
+<label><input id="dlCtl" type="checkbox"> Allow Song Download</label>
+<ol id="queue"></ol><div id="devices"></div></section>
+<section id="guest" class="glass" hidden><div id="gstate">Connecting...</div><div id="lock"></div><div id="rtt"></div><button id="tap" hidden>▶ TAP TO START AUDIO</button>
+<div id="gctl" hidden><button data-r="prev">⏮</button><button data-r="pause">⏸</button><button data-r="play">▶</button><button data-r="next">⏭</button></div><button id="dlBtn" hidden>⬇ Download Song</button><div id="dlStat"></div><button id="home2" hidden>Return Home</button></section>
+<section class="glass"><canvas id="cv" width="600" height="220"></canvas><select id="mode" aria-label="Visualizer mode"><option value="0">Spectrum Bars</option><option value="1">Waveform</option><option value="2">Circular Spectrum</option></select></section>
+</main>
+<div id="modal" hidden><div class="glass"><h2>Join Live Room</h2><input id="name" placeholder="Your name"><input id="codeIn" inputmode="numeric" maxlength="7" placeholder="Enter 6-digit code" aria-label="Room code"><button id="join" class="big">CONNECT</button><button id="cancel">Cancel</button><div id="jstat"></div></div></div>
+<div id="toast" role="status"></div>
+<footer>Created By Shiv Yogi</footer>
+<script src="app.js?v=1.0.1"></script></body></html>
