@@ -1,0 +1,20 @@
+:root{--g:rgba(255,255,255,.07);--a:#6df0ff}*{box-sizing:border-box}
+body{margin:0;background:#000;color:#eee;font:16px system-ui,sans-serif;min-height:100vh;background-image:radial-gradient(circle at 50% -10%,#0a3a4a55,transparent 60%)}
+header{display:flex;gap:12px;align-items:center;padding:12px 16px}header b{flex:1;letter-spacing:.2em}
+main{display:grid;gap:12px;padding:12px;max-width:760px;margin:auto}
+.glass{background:var(--g);border:1px solid #fff2;border-radius:20px;padding:16px;backdrop-filter:blur(14px);display:grid;gap:10px}
+button,select,input:not([type=range]):not([type=checkbox]){background:#ffffff14;color:#fff;border:1px solid #fff3;border-radius:14px;padding:10px 14px;font:inherit}
+button{cursor:pointer;transition:transform .12s,box-shadow .2s}button:hover{box-shadow:0 0 14px var(--a)}button:active{transform:scale(.97)}button:disabled{opacity:.4;pointer-events:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--a)}
+.big{padding:18px;font-size:1.15rem}
+#code{font-size:2.6rem;letter-spacing:.3em;text-shadow:0 0 18px var(--a)}
+#live{font-size:.8rem}#live.on{color:#4f8}#live.on::before{content:"● ";animation:p 1.4s infinite}@keyframes p{50%{opacity:.3}}
+canvas{width:100%;border-radius:14px;background:#000}
+#modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:5}#modal[hidden]{display:none}
+#modal .glass{width:min(92vw,360px);animation:in .25s}@keyframes in{from{opacity:0;transform:scale(.96)}}
+#toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,30px);opacity:0;background:#222c;padding:10px 18px;border-radius:14px;transition:.3s;z-index:9}#toast.show{opacity:1;transform:translate(-50%,0)}
+#intro{position:fixed;inset:0;background:#000;display:grid;place-content:center;text-align:center;z-index:20;animation:out .6s 2.4s forwards}
+#intro h1{letter-spacing:.35em;font-size:2.2rem;margin:0;animation:sc 2.4s ease-out;text-shadow:0 0 30px var(--a)}@keyframes sc{from{transform:scale(.9);opacity:0}}@keyframes out{to{opacity:0;visibility:hidden}}
+#queue li{cursor:pointer}#queue li.cur{color:var(--a)}footer{text-align:center;opacity:.5;padding:16px}
+.dev{display:flex;justify-content:space-between}[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition:none!important}}
