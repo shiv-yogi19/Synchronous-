@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<title>SYNCWAVE</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="boot" class="boot">
+  <div class="boot-orb"><span>S</span></div>
+  <h1>SYNC<span>WAVE</span></h1>
+  <p>Live Audio · Connect · Feel Together</p>
+  <small>Created By Shiv Yogi</small>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="topbar glass">
+    <button class="brand" data-view="home"><span class="brand-mark">S</span><span>SYNCWAVE</span></button>
+    <div class="top-status">
+      <span id="statusDot" class="dot"></span><span id="statusText">Ready</span>
+      <span id="roomBadge" class="room-badge hidden"></span>
+    </div>
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙</button>
+  </header>
+
+  <main id="main">
+    <section id="homeView" class="view active">
+      <div class="hero glass">
+        <div class="hero-glow"></div>
+        <div class="hero-copy">
+          <span class="eyebrow">REAL-TIME AUDIO PLATFORM</span>
+          <h2>More than a music player.<br><span>It’s a live wave.</span></h2>
+          <p>Broadcast music and voice directly between browsers with real WebRTC.</p>
+          <div class="hero-actions">
+            <button id="createRoomBtn" class="primary-btn">＋ Create Live Room</button>
+            <button id="joinRoomBtn" class="secondary-btn">⌁ Join Room</button>
+          </div>
+        </div>
+        <canvas id="heroCanvas"></canvas>
+      </div>
+      <div class="feature-grid">
+        <article class="glass feature"><b>🎵</b><strong>Live Music</strong><span>Local audio, live playback and controls.</span></article>
+        <article class="glass feature"><b>🎙</b><strong>Live Mic</strong><span>Voice broadcast with automatic ducking.</span></article>
+        <article class="glass feature"><b>〽</b><strong>30+ Visualizers</strong><span>Real audio-reactive canvas modes.</span></article>
+        <article class="glass feature"><b>↯</b><strong>P2P</strong><span>No server-side audio storage.</span></article>
+      </div>
+    </section>
+
+    <section id="hostView" class="view">
+      <div class="studio-grid">
+        <aside class="glass side-panel">
+          <div class="panel-title">HOST STUDIO</div>
+          <button id="musicPickBtn" class="menu-btn">🎵 <span>Choose Song</span></button>
+          <input id="songInput" type="file" accept="audio/*" hidden>
+          <button id="micBtn" class="menu-btn">🎙 <span>Microphone</span><i id="micState">OFF</i></button>
+          <button id="visualizerBtn" class="menu-btn">〽 <span>Visualizer</span></button>
+          <button id="hostSettingsBtn" class="menu-btn">⚙ <span>Audio Settings</span></button>
+          <div class="side-spacer"></div>
+          <button id="endRoomBtn" class="danger-btn">End Live Room</button>
+        </aside>
+
+        <div class="center-stage">
+          <div class="visualizer-card glass">
+            <canvas id="vizCanvas"></canvas>
+            <div class="viz-overlay">
+              <span id="livePill" class="pill">● LIVE</span>
+              <button id="fullscreenVizBtn" class="mini-btn">⛶</button>
+            </div>
+            <div id="vizName" class="viz-name">Spectrum Bars</div>
+          </div>
+          <div class="track-card glass">
+            <div class="art"><span id="artLetter">S</span></div>
+            <div class="track-info"><b id="trackName">No song selected</b><span id="trackMeta">Ready to broadcast</span></div>
+            <button id="songDownloadToggle" class="toggle" aria-label="Allow song download"><span></span></button>
+          </div>
+          <div class="player glass">
+            <div class="time-row"><span id="currentTime">0:00</span><span id="duration">0:00</span></div>
+            <input id="seek" class="range" type="range" min="0" max="100" value="0">
+            <div class="controls">
+              <button id="prevBtn" class="round-btn">⏮</button>
+              <button id="playBtn" class="play-btn">▶</button>
+              <button id="nextBtn" class="round-btn">⏭</button>
+              <div class="volume"><span>🔊</span><input id="volume" class="range" type="range" min="0" max="1" step=".01" value=".9"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="right-stack">
+          <div class="glass room-card">
+            <div class="panel-title">LIVE ROOM</div>
+            <div id="roomCode" class="room-code">------</div>
+            <button id="copyRoomBtn" class="secondary-btn small">Copy Code</button>
+            <div class="room-line"><span>Listeners</span><b id="listenerCount">0</b></div>
+            <div class="room-line"><span>Connection</span><b id="hostConnection">Waiting</b></div>
+          </div>
+          <div class="glass permission-card">
+            <div class="panel-title">CLIENT PERMISSIONS</div>
+            <label class="switch-row"><span>Allow Song Download</span><button id="allowDownload" class="switch"><i></i></button></label>
+            <label class="switch-row"><span>Allow Live Recording</span><button id="allowRecording" class="switch"><i></i></button></label>
+            <small>Files stay on devices. Server receives no audio.</small>
+          </div>
+          <div class="glass mic-card">
+            <div class="panel-title">MIC / DUCKING</div>
+            <div class="meter"><i id="micMeter"></i></div>
+            <div class="room-line"><span>Mic Gain</span><b id="micGainValue">1.0×</b></div>
+            <input id="micGain" class="range" type="range" min="0" max="2" step=".1" value="1">
+            <div class="room-line"><span>Ducking</span><b id="duckValue">35%</b></div>
+            <input id="ducking" class="range" type="range" min="0" max=".8" step=".05" value=".35">
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="clientView" class="view">
+      <div class="client-grid">
+        <div class="visualizer-card glass client-viz"><canvas id="clientCanvas"></canvas><div class="viz-overlay"><span id="clientLive" class="pill">● CONNECTED</span><button id="clientFullViz" class="mini-btn">⛶</button></div><div id="clientVizName" class="viz-name">Circular Spectrum</div></div>
+        <div class="glass client-track">
+          <div class="art big"><span id="clientArtLetter">S</span></div>
+          <div><span class="eyebrow">NOW PLAYING</span><h2 id="clientTrack">Waiting for Host</h2><p id="clientHost">Not connected</p></div>
+        </div>
+        <div class="glass client-controls">
+          <div class="time-row"><span id="clientElapsed">0:00</span><span id="clientDuration">0:00</span></div>
+          <div class="fake-progress"><i id="clientProgress"></i></div>
+          <div class="client-buttons"><button id="guestPrev" class="round-btn">⏮</button><button id="guestPlay" class="play-btn">▶</button><button id="guestNext" class="round-btn">⏭</button></div>
+          <div id="guestLock" class="lock hidden">🔒 Guest controls locked · <b>19s</b></div>
+        </div>
+        <div class="glass client-actions">
+          <button id="downloadSongBtn" class="action-btn hidden">⇩ <span>Download Song</span></button>
+          <button id="recordBtn" class="action-btn hidden">● <span>Record Live Audio</span></button>
+          <button id="leaveBtn" class="danger-btn">Leave Room</button>
+          <div id="downloadProgress" class="transfer hidden"><div><span id="transferLabel">Preparing…</span><b id="transferPct">0%</b></div><div class="transfer-bar"><i id="transferBar"></i></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav glass">
+    <button data-view="home" class="nav active">⌂<span>Home</span></button>
+    <button data-view="host" class="nav">♫<span>Studio</span></button>
+    <button id="navConnect" class="nav connect">＋<span>Connect</span></button>
+    <button id="navViz" class="nav">〽<span>Visuals</span></button>
+    <button id="navSettings" class="nav">⚙<span>Settings</span></button>
+  </nav>
+</div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-card glass">
+    <button id="modalClose" class="modal-close">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<audio id="audio" playsinline></audio>
+<script src="/app.js"></script>
+</body>
+</html>
