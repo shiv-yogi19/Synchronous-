@@ -1,83 +1,98 @@
+const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "content-type": "application/json" } });
 export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    try {
-      if (url.pathname === "/api/room" && request.method === "POST") {
-        const code = randomCode();
-        const id = env.ROOMS.idFromName(code);
-        const stub = env.ROOMS.get(id);
-        const r = await stub.fetch(new Request("https://room/create", {method:"POST"}));
-        if (!r.ok) return new Response("Room creation failed", {status:500});
-        const data = await r.json();
-        return Response.json({code, token:data.token});
-      }
-      if (url.pathname.startsWith("/api/room/") && request.method === "GET") {
-        const code = url.pathname.split("/").pop();
-        if (!/^\d{6}$/.test(code)) return new Response("Invalid room", {status:400});
-        const id = env.ROOMS.idFromName(code);
-        const stub = env.ROOMS.get(id);
-        return stub.fetch(new Request("https://room/info"));
-      }
-      if (url.pathname === "/ws") {
-        if (request.headers.get("Upgrade") !== "websocket") return new Response("Expected WebSocket", {status:426});
-        const code = url.searchParams.get("code") || "";
-        const role = url.searchParams.get("role") || "";
-        const token = url.searchParams.get("token") || "";
-        if (!/^\d{6}$/.test(code) || !["host","client"].includes(role)) return new Response("Bad request",{status:400});
-        const id = env.ROOMS.idFromName(code);
-        const stub = env.ROOMS.get(id);
-        return stub.fetch(new Request("https://room/ws?role="+encodeURIComponent(role)+"&token="+encodeURIComponent(token), request));
-      }
-      if (env.ASSETS) return env.ASSETS.fetch(request);
-      return new Response("SYNCWAVE", {status:200});
-    } catch (e) {
-      return new Response("Server error", {status:500});
+  async fetch(req, env) {
+    const u = new URL(req.url);
+    if (u.pathname === "/api/ice") return json({ iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }, { urls: "stun:stun.l.google.com:19302" }] });
+    if (u.pathname === "/api/room" && req.method === "POST") {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const token = crypto.randomUUID();
+      const r = await env.ROOM.get(env.ROOM.idFromName(code)).fetch("https://r/init", { method: "POST", body: token });
+      if (!r.ok) return json({ error: "retry" }, 409);
+      return json({ code, token });
     }
-  }
+    const m = u.pathname.match(/^\/api\/room\/(\d{6})$/);
+    if (m) return env.ROOM.get(env.ROOM.idFromName(m[1])).fetch("https://r/info");
+    if (u.pathname === "/ws") {
+      const code = u.searchParams.get("code") || "";
+      if (!/^\d{6}$/.test(code)) return json({ error: "Invalid room code" }, 400);
+      return env.ROOM.get(env.ROOM.idFromName(code)).fetch(req);
+    }
+    return env.ASSETS.fetch(req);
+  },
 };
-
-function randomCode(){return String(Math.floor(100000+Math.random()*900000));}
-
+const MAX = 8, LOCK = 19000;
 export class Room {
-  constructor(state) { this.state=state; this.sessions=new Map(); this.hostToken=null; this.created=Date.now(); }
-  async fetch(request){
-    const url=new URL(request.url);
-    if(request.method==="POST" && url.pathname==="/create"){
-      if(!this.hostToken)this.hostToken=crypto.randomUUID();
-      return Response.json({token:this.hostToken});
+  constructor(ctx) { this.ctx = ctx; this.s = ctx.storage; }
+  async fetch(req) {
+    const u = new URL(req.url), tok = await this.s.get("token");
+    if (u.pathname === "/init") { if (tok) return new Response("", { status: 409 }); await this.s.put("token", await req.text()); return new Response("ok"); }
+    if (u.pathname === "/info") {
+      if (!tok) return json({ error: "Room does not exist" }, 404);
+      return json({ clients: this.ctx.getWebSockets("client").length, max: MAX });
     }
-    if(request.method==="GET" && url.pathname==="/info"){
-      return Response.json({ok:!!this.hostToken,clients:this.sessions.size});
+    if (req.headers.get("Upgrade") !== "websocket") return new Response("Expected websocket", { status: 426 });
+    const role = u.searchParams.get("role"), pair = new WebSocketPair();
+    let att, old = [];
+    if (!tok) return json({ error: "Room does not exist" }, 404);
+    if (role === "host") {
+      if (u.searchParams.get("token") !== tok) return json({ error: "Not authorized" }, 403);
+      old = this.ctx.getWebSockets("host");
+      att = { id: "host", role, name: "Host" };
+    } else {
+      if (!this.ctx.getWebSockets("host").length && !(await this.s.get("hostSeen"))) return json({ error: "Host not connected" }, 404);
+      if (this.ctx.getWebSockets("client").length >= MAX) return json({ error: "ROOM FULL" }, 409);
+      att = { id: crypto.randomUUID().slice(0, 8), role: "client", name: (u.searchParams.get("name") || "Guest").slice(0, 24) };
     }
-    if(url.pathname==="/ws"){
-      const role=url.searchParams.get("role"), token=url.searchParams.get("token");
-      if(role==="host" && token!==this.hostToken) return new Response("Unauthorized",{status:401});
-      if(role==="client" && !this.hostToken) return new Response("Room not found",{status:404});
-      if(role==="client" && this.sessions.size>=8)return new Response("Room full",{status:409});
-      const pair=new WebSocketPair(), client=pair[0], server=pair[1]; server.accept();
-      const sid=crypto.randomUUID(); this.sessions.set(sid,{ws:server,role});
-      server.send(JSON.stringify({type:"welcome",id:sid,role}));
-      server.addEventListener("message",async e=>{
-        let m; try{m=JSON.parse(e.data)}catch{return}
-        if(m.type==="guest-command" && role==="client"){
-          this.sendHost({...m,from:sid,type:"guest-command"});
-        } else if(m.to){
-          const target=this.sessions.get(m.to);
-          if(target)target.ws.send(JSON.stringify({...m,from:sid}));
-        } else if(m.type==="host-state" && role==="host"){
-          this.broadcast({...m});
-        } else if(m.type==="file-request" && role==="client"){
-          this.sendHost({type:"file-request",from:sid});
-        }
-      });
-      server.addEventListener("close",()=>this.leave(sid));
-      server.addEventListener("error",()=>this.leave(sid));
-      if(role==="client")this.sendHost({type:"peer-joined",id:sid});
-      return new Response(null,{status:101,webSocket:client});
-    }
-    return new Response("Not found",{status:404});
+    this.ctx.acceptWebSocket(pair[1], [att.role]);
+    pair[1].serializeAttachment(att);
+    old.forEach(x => x.close(4000, "replaced"));
+    if (att.role === "host") await this.s.put("hostSeen", 1);
+    const c = await this.cfg();
+    pair[1].send(JSON.stringify({ type: "room-joined", id: att.id, role: att.role, lockMs: Math.max(0, c.lockUntil - Date.now()), guest: c.guest, dl: c.dl }));
+    if (att.role === "client") this.toHost({ type: "peer-joined", id: att.id, name: att.name });
+    return new Response(null, { status: 101, webSocket: pair[0] });
   }
-  sendHost(m){for(const s of this.sessions.values())if(s.role==="host")s.ws.send(JSON.stringify(m))}
-  broadcast(m){for(const s of this.sessions.values())if(s.role==="client")s.ws.send(JSON.stringify(m))}
-  leave(id){const s=this.sessions.get(id);if(!s)return;this.sessions.delete(id);if(s.role==="client")this.sendHost({type:"peer-left",id});else{for(const x of this.sessions.values())x.ws.close(1000,"Host disconnected");this.sessions.clear();this.hostToken=null}}
+  toHost(o) { this.ctx.getWebSockets("host").forEach(w => { try { w.send(JSON.stringify(o)); } catch (e) { console.error(e); } }); }
+  all(o) { this.ctx.getWebSockets().forEach(w => { try { w.send(JSON.stringify(o)); } catch (e) { console.error(e); } }); }
+  async cfg() { const m = await this.s.get(["lockUntil", "guest", "dl"]); return { lockUntil: m.get("lockUntil") || 0, guest: !!m.get("guest"), dl: !!m.get("dl") }; }
+  async webSocketMessage(ws, data) {
+    const a = ws.deserializeAttachment(), er = e => ws.send(JSON.stringify({ type: "error", error: e }));
+    if (typeof data !== "string" || data.length > 20000) return er("Bad message");
+    let m; try { m = JSON.parse(data); } catch (e) { return er("Bad JSON"); }
+    if (!m || typeof m.type !== "string") return er("Bad message");
+    const c = await this.cfg(), find = id => this.ctx.getWebSockets("client").find(x => x.deserializeAttachment().id === id);
+    if (a.role === "host") {
+      if (m.type === "offer" || m.type === "ice-candidate") {
+        const t = find(m.to);
+        if (t) t.send(JSON.stringify({ type: m.type, from: "host", sdp: m.sdp, c: m.c }));
+      } else if (m.type === "ctl" && ["pause", "next", "prev"].includes(m.cmd)) {
+        await this.s.put("lockUntil", Date.now() + LOCK); this.all({ type: "lock-update", lockMs: LOCK });
+      } else if (m.type === "permission-update") {
+        await this.s.put("guest", !!m.guest); await this.s.put("dl", !!m.dl);
+        this.all({ type: "permission-update", guest: !!m.guest, dl: !!m.dl });
+      } else if (m.type === "kick") {
+        const t = find(m.to); if (t) t.close(4001, "removed");
+      }
+    } else {
+      if (m.type === "answer" || m.type === "ice-candidate") this.toHost({ type: m.type, from: a.id, sdp: m.sdp, c: m.c });
+      else if (m.type === "request" && ["play", "pause", "next", "prev"].includes(m.cmd)) {
+        if (!c.guest) return er("Guest controls are off");
+        if (Date.now() < c.lockUntil) return er("Controls locked by host");
+        this.toHost({ type: "request", from: a.id, cmd: m.cmd });
+      } else if (m.type === "download-request") {
+        if (!c.dl) return er("Song download is off");
+        this.toHost({ type: "download-request", from: a.id });
+      }
+    }
+  }
+  async webSocketClose(ws) {
+    const a = ws.deserializeAttachment();
+    if (a.role === "host") {
+      if (this.ctx.getWebSockets("host").some(w => w !== ws)) return;
+      this.all({ type: "host-disconnected" });
+      this.ctx.getWebSockets().forEach(w => { try { w.close(1000, "host left"); } catch (e) { console.error(e); } });
+      await this.s.deleteAll();
+    } else this.toHost({ type: "peer-left", id: a.id });
+  }
+  async webSocketError(ws) { await this.webSocketClose(ws); }
 }
